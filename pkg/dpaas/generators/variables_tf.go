@@ -199,8 +199,10 @@ func writeBlockValidations(b *strings.Builder, block schema.ParsedBlock) {
 
 		b.WriteString("  validation {\n")
 		if isSingle {
-			if block.Required {
+			if block.Required && attr.Required {
 				b.WriteString(fmt.Sprintf("    condition     = contains(%s, var.%s.%s)\n", enumList, block.Name, attr.Name))
+			} else if block.Required && !attr.Required {
+				b.WriteString(fmt.Sprintf("    condition     = var.%s.%s == null || contains(%s, var.%s.%s)\n", block.Name, attr.Name, enumList, block.Name, attr.Name))
 			} else {
 				b.WriteString(fmt.Sprintf("    condition     = var.%s == null || contains(%s, var.%s.%s)\n", block.Name, enumList, block.Name, attr.Name))
 			}
