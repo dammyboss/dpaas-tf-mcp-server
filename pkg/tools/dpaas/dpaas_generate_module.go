@@ -69,7 +69,17 @@ func dpaasGenerateModuleHandler(_ context.Context, request mcp.CallToolRequest, 
 		return DPaaSToolError(logger, fmt.Sprintf("schema extraction failed for %s", resourceType), err)
 	}
 
-	// 2. generate all files
+	// 2. fetch docs and merge enum values (non-fatal if fetch fails)
+	logger.Infof("[dpaas] fetching provider docs for enum values …")
+	docsEnums := schema.FetchDocsEnumValues(resourceType)
+	if docsEnums != nil {
+		schema.MergeDocsEnums(info, docsEnums)
+		logger.Infof("[dpaas] merged %d enum value sets from provider docs", len(docsEnums))
+	} else {
+		logger.Warn("[dpaas] could not fetch provider docs – falling back to schema-only enums")
+	}
+
+	// 3. generate all files
 	logger.Infof("[dpaas] generating module files for %s", info.ModuleName)
 	module := generators.GenerateModule(info)
 

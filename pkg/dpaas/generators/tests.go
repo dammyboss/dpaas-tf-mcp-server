@@ -114,18 +114,25 @@ func isStandardTestVar(name string) bool {
 // generateExampleValue creates a sensible example value for a required attribute
 // Fully dynamic - no hardcoded resource-specific values
 func generateExampleValue(attr schema.ParsedAttribute) string {
-	// Use enum values if available (from schema)
-	if len(attr.EnumValues) > 0 {
-		return fmt.Sprintf("\"%s\"", attr.EnumValues[0])
+	// Non-string types are never enums
+	switch attr.TFType {
+	case "bool":
+		return "true"
+	case "number":
+		return "1"
 	}
 
-	// Type-based defaults
-	switch attr.TFType {
-	case "string":
-		// ID references get placeholder Azure resource IDs
+	if attr.TFType == "string" {
+		// _id fields are resource references, not enums — always use Azure ID format
 		if strings.HasSuffix(attr.Name, "_id") {
-			return fmt.Sprintf("\"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Example.Provider/resources/example-%s\"", strings.TrimSuffix(attr.Name, "_id"))
+			return fmt.Sprintf("\"%s\"", schema.GenerateAzureResourceID(attr.Name))
 		}
+
+		// Use enum values if available (from provider docs or schema)
+		if len(attr.EnumValues) > 0 {
+			return fmt.Sprintf("\"%s\"", attr.EnumValues[0])
+		}
+
 		// Name fields
 		if strings.Contains(attr.Name, "name") {
 			return fmt.Sprintf("\"example-%s\"", strings.ReplaceAll(attr.Name, "_", "-"))
@@ -139,23 +146,16 @@ func generateExampleValue(attr schema.ParsedAttribute) string {
 			return "\"P@ssw0rd1234!\""
 		}
 		return "\"example-value\""
-	case "bool":
-		return "true"
-	case "number":
-		return "1"
-	default:
-		// List or complex types
-		if strings.HasPrefix(attr.TFType, "list(") {
-			return "[]"
-		}
-		if strings.HasPrefix(attr.TFType, "map(") {
-			return "{}"
-		}
-		if strings.HasPrefix(attr.TFType, "set(") {
-			return "[]"
-		}
-		return "null"
 	}
+
+	// List or complex types
+	if strings.HasPrefix(attr.TFType, "list(") || strings.HasPrefix(attr.TFType, "set(") {
+		return "[]"
+	}
+	if strings.HasPrefix(attr.TFType, "map(") {
+		return "{}"
+	}
+	return "null"
 }
 
 // generateExampleBlock creates an example configuration for a required block
@@ -174,31 +174,13 @@ func generateExampleBlock(block schema.ParsedBlock) string {
 		// Single block: use object syntax
 		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
 
-		// Add block attributes with smart defaults
-		for _, attr := range block.Attributes {
-			if attr.Required {
-				tempAttr := schema.ParsedAttribute{
-					Name:        attr.Name,
-					Description: attr.Description,
-					TFType:      attr.TFType,
-					Required:    attr.Required,
-					Optional:    attr.Optional,
-					Computed:    attr.Computed,
-					Sensitive:   attr.Sensitive,
-					EnumValues:  []string{},
-				}
-				exampleValue := generateExampleValue(tempAttr)
-				padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
-				b.WriteString(fmt.Sprintf("    %s%s = %s\n", attr.Name, padding, exampleValue))
-			}
-		}
-
-		// If no required attributes, add a comment
 		hasRequired := false
 		for _, attr := range block.Attributes {
 			if attr.Required {
 				hasRequired = true
-				break
+				exampleValue := generateExampleValue(attr)
+				padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
+				b.WriteString(fmt.Sprintf("    %s%s = %s\n", attr.Name, padding, exampleValue))
 			}
 		}
 		if !hasRequired {
@@ -211,31 +193,13 @@ func generateExampleBlock(block schema.ParsedBlock) string {
 		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
 		b.WriteString(fmt.Sprintf("    %s = {\n", mapKey))
 
-		// Add block attributes with smart defaults
-		for _, attr := range block.Attributes {
-			if attr.Required {
-				tempAttr := schema.ParsedAttribute{
-					Name:        attr.Name,
-					Description: attr.Description,
-					TFType:      attr.TFType,
-					Required:    attr.Required,
-					Optional:    attr.Optional,
-					Computed:    attr.Computed,
-					Sensitive:   attr.Sensitive,
-					EnumValues:  []string{},
-				}
-				exampleValue := generateExampleValue(tempAttr)
-				padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
-				b.WriteString(fmt.Sprintf("      %s%s = %s\n", attr.Name, padding, exampleValue))
-			}
-		}
-
-		// If no required attributes, add a comment
 		hasRequired := false
 		for _, attr := range block.Attributes {
 			if attr.Required {
 				hasRequired = true
-				break
+				exampleValue := generateExampleValue(attr)
+				padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
+				b.WriteString(fmt.Sprintf("      %s%s = %s\n", attr.Name, padding, exampleValue))
 			}
 		}
 		if !hasRequired {

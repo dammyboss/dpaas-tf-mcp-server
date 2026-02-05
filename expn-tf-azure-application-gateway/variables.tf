@@ -290,80 +290,80 @@ variable "zones" {
 
 variable "authentication_certificate" {
   description = "authentication certificate block configuration"
-  type = map(object({
+  type        = map(object({
     data = string
     name = string
   }))
-  default = {}
+  default     = {}
 }
 
 variable "autoscale_configuration" {
   description = "autoscale configuration block configuration"
-  type = object({
+  type        = object({
     max_capacity = optional(number)
     min_capacity = number
   })
-  default = null
+  default     = null
 }
 
 variable "backend_address_pool" {
   description = "backend address pool block configuration"
-  type = map(object({
-    fqdns        = optional(set(string))
+  type        = map(object({
+    fqdns = optional(set(string))
     ip_addresses = optional(set(string))
-    name         = string
+    name = string
   }))
 }
 
 variable "backend_http_settings" {
   description = "backend http settings block configuration"
-  type = map(object({
-    affinity_cookie_name                 = optional(string)
-    cookie_based_affinity                = string
+  type        = map(object({
+    affinity_cookie_name = optional(string)
+    cookie_based_affinity = string
     dedicated_backend_connection_enabled = optional(bool)
-    host_name                            = optional(string)
-    name                                 = string
-    path                                 = optional(string)
-    pick_host_name_from_backend_address  = optional(bool)
-    port                                 = number
-    probe_name                           = optional(string)
-    protocol                             = string
-    request_timeout                      = optional(number)
-    trusted_root_certificate_names       = optional(list(string))
+    host_name = optional(string)
+    name = string
+    path = optional(string)
+    pick_host_name_from_backend_address = optional(bool)
+    port = number
+    probe_name = optional(string)
+    protocol = string
+    request_timeout = optional(number)
+    trusted_root_certificate_names = optional(list(string))
     authentication_certificate = optional(map(object({
       name = string
     })))
     connection_draining = optional(object({
       drain_timeout_sec = number
-      enabled           = bool
+      enabled = bool
     }))
   }))
 }
 
 variable "custom_error_configuration" {
   description = "custom error configuration block configuration"
-  type = map(object({
+  type        = map(object({
     custom_error_page_url = string
-    status_code           = string
+    status_code = string
   }))
-  default = {}
+  default     = {}
 }
 
 variable "frontend_ip_configuration" {
   description = "frontend ip configuration block configuration"
-  type = map(object({
-    name                            = string
-    private_ip_address              = optional(string)
-    private_ip_address_allocation   = optional(string)
+  type        = map(object({
+    name = string
+    private_ip_address = optional(string)
+    private_ip_address_allocation = optional(string)
     private_link_configuration_name = optional(string)
-    public_ip_address_id            = optional(string)
-    subnet_id                       = optional(string)
+    public_ip_address_id = optional(string)
+    subnet_id = optional(string)
   }))
 }
 
 variable "frontend_port" {
   description = "frontend port block configuration"
-  type = map(object({
+  type        = map(object({
     name = string
     port = number
   }))
@@ -371,267 +371,267 @@ variable "frontend_port" {
 
 variable "gateway_ip_configuration" {
   description = "gateway ip configuration block configuration"
-  type = map(object({
-    name      = string
+  type        = map(object({
+    name = string
     subnet_id = string
   }))
 }
 
 variable "global" {
   description = "global block configuration"
-  type = object({
-    request_buffering_enabled  = bool
+  type        = object({
+    request_buffering_enabled = bool
     response_buffering_enabled = bool
   })
-  default = null
+  default     = null
 }
 
 variable "http_listener" {
   description = "http listener block configuration"
-  type = map(object({
-    firewall_policy_id             = optional(string)
+  type        = map(object({
+    firewall_policy_id = optional(string)
     frontend_ip_configuration_name = string
-    frontend_port_name             = string
-    host_name                      = optional(string)
-    host_names                     = optional(set(string))
-    name                           = string
-    protocol                       = string
-    require_sni                    = optional(bool)
-    ssl_certificate_name           = optional(string)
-    ssl_profile_name               = optional(string)
+    frontend_port_name = string
+    host_name = optional(string)
+    host_names = optional(set(string))
+    name = string
+    protocol = string
+    require_sni = optional(bool)
+    ssl_certificate_name = optional(string)
+    ssl_profile_name = optional(string)
     custom_error_configuration = optional(map(object({
       custom_error_page_url = string
-      status_code           = string
+      status_code = string
     })))
   }))
 }
 
 variable "identity" {
   description = "identity block configuration"
-  type = object({
+  type        = object({
     identity_ids = optional(set(string))
-    type         = string
+    type = string
   })
-  default = null
+  default     = null
 }
 
 variable "private_link_configuration" {
   description = "private link configuration block configuration"
-  type = map(object({
+  type        = map(object({
     name = string
     ip_configuration = map(object({
-      name                          = string
-      primary                       = bool
-      private_ip_address            = optional(string)
+      name = string
+      primary = bool
+      private_ip_address = optional(string)
       private_ip_address_allocation = string
-      subnet_id                     = string
+      subnet_id = string
     }))
   }))
-  default = {}
+  default     = {}
 }
 
 variable "probe" {
   description = "probe block configuration"
-  type = map(object({
-    host                                      = optional(string)
-    interval                                  = number
-    minimum_servers                           = optional(number)
-    name                                      = string
-    path                                      = string
+  type        = map(object({
+    host = optional(string)
+    interval = number
+    minimum_servers = optional(number)
+    name = string
+    path = string
     pick_host_name_from_backend_http_settings = optional(bool)
-    port                                      = optional(number)
-    protocol                                  = string
-    timeout                                   = number
-    unhealthy_threshold                       = number
+    port = optional(number)
+    protocol = string
+    timeout = number
+    unhealthy_threshold = number
     match = optional(object({
-      body        = optional(string)
+      body = optional(string)
       status_code = list(string)
     }))
   }))
-  default = {}
+  default     = {}
 }
 
 variable "redirect_configuration" {
   description = "redirect configuration block configuration"
-  type = map(object({
-    include_path         = optional(bool)
+  type        = map(object({
+    include_path = optional(bool)
     include_query_string = optional(bool)
-    name                 = string
-    redirect_type        = string
+    name = string
+    redirect_type = string
     target_listener_name = optional(string)
-    target_url           = optional(string)
+    target_url = optional(string)
   }))
-  default = {}
+  default     = {}
 }
 
 variable "request_routing_rule" {
   description = "request routing rule block configuration"
-  type = map(object({
-    backend_address_pool_name   = optional(string)
-    backend_http_settings_name  = optional(string)
-    http_listener_name          = string
-    name                        = string
-    priority                    = optional(number)
+  type        = map(object({
+    backend_address_pool_name = optional(string)
+    backend_http_settings_name = optional(string)
+    http_listener_name = string
+    name = string
+    priority = optional(number)
     redirect_configuration_name = optional(string)
-    rewrite_rule_set_name       = optional(string)
-    rule_type                   = string
-    url_path_map_name           = optional(string)
+    rewrite_rule_set_name = optional(string)
+    rule_type = string
+    url_path_map_name = optional(string)
   }))
 }
 
 variable "rewrite_rule_set" {
   description = "rewrite rule set block configuration"
-  type = map(object({
+  type        = map(object({
     name = string
     rewrite_rule = optional(map(object({
-      name          = string
+      name = string
       rule_sequence = number
       condition = optional(map(object({
         ignore_case = optional(bool)
-        negate      = optional(bool)
-        pattern     = string
-        variable    = string
+        negate = optional(bool)
+        pattern = string
+        variable = string
       })))
       request_header_configuration = optional(map(object({
-        header_name  = string
+        header_name = string
         header_value = string
       })))
       response_header_configuration = optional(map(object({
-        header_name  = string
+        header_name = string
         header_value = string
       })))
       url = optional(object({
-        components   = optional(string)
-        path         = optional(string)
+        components = optional(string)
+        path = optional(string)
         query_string = optional(string)
-        reroute      = optional(bool)
+        reroute = optional(bool)
       }))
     })))
   }))
-  default = {}
+  default     = {}
 }
 
 variable "sku" {
   description = "sku block configuration"
-  type = object({
+  type        = object({
     capacity = optional(number)
-    name     = string
-    tier     = string
+    name = string
+    tier = string
   })
 }
 
 variable "ssl_certificate" {
   description = "ssl certificate block configuration"
-  type = map(object({
-    data                = optional(string)
+  type        = map(object({
+    data = optional(string)
     key_vault_secret_id = optional(string)
-    name                = string
-    password            = optional(string)
+    name = string
+    password = optional(string)
   }))
-  default = {}
+  default     = {}
 }
 
 variable "ssl_policy" {
   description = "ssl policy block configuration"
-  type = object({
-    cipher_suites        = optional(list(string))
-    disabled_protocols   = optional(list(string))
+  type        = object({
+    cipher_suites = optional(list(string))
+    disabled_protocols = optional(list(string))
     min_protocol_version = optional(string)
-    policy_name          = optional(string)
-    policy_type          = optional(string)
+    policy_name = optional(string)
+    policy_type = optional(string)
   })
-  default = null
+  default     = null
 }
 
 variable "ssl_profile" {
   description = "ssl profile block configuration"
-  type = map(object({
-    name                                 = string
-    trusted_client_certificate_names     = optional(list(string))
-    verify_client_cert_issuer_dn         = optional(bool)
+  type        = map(object({
+    name = string
+    trusted_client_certificate_names = optional(list(string))
+    verify_client_cert_issuer_dn = optional(bool)
     verify_client_certificate_revocation = optional(string)
     ssl_policy = optional(object({
-      cipher_suites        = optional(list(string))
-      disabled_protocols   = optional(list(string))
+      cipher_suites = optional(list(string))
+      disabled_protocols = optional(list(string))
       min_protocol_version = optional(string)
-      policy_name          = optional(string)
-      policy_type          = optional(string)
+      policy_name = optional(string)
+      policy_type = optional(string)
     }))
   }))
-  default = {}
+  default     = {}
 }
 
 variable "timeouts" {
   description = "timeouts block configuration"
-  type = object({
+  type        = object({
     create = optional(string)
     delete = optional(string)
-    read   = optional(string)
+    read = optional(string)
     update = optional(string)
   })
-  default = null
+  default     = null
 }
 
 variable "trusted_client_certificate" {
   description = "trusted client certificate block configuration"
-  type = map(object({
+  type        = map(object({
     data = string
     name = string
   }))
-  default = {}
+  default     = {}
 }
 
 variable "trusted_root_certificate" {
   description = "trusted root certificate block configuration"
-  type = map(object({
-    data                = optional(string)
+  type        = map(object({
+    data = optional(string)
     key_vault_secret_id = optional(string)
-    name                = string
+    name = string
   }))
-  default = {}
+  default     = {}
 }
 
 variable "url_path_map" {
   description = "url path map block configuration"
-  type = map(object({
-    default_backend_address_pool_name   = optional(string)
-    default_backend_http_settings_name  = optional(string)
+  type        = map(object({
+    default_backend_address_pool_name = optional(string)
+    default_backend_http_settings_name = optional(string)
     default_redirect_configuration_name = optional(string)
-    default_rewrite_rule_set_name       = optional(string)
-    name                                = string
+    default_rewrite_rule_set_name = optional(string)
+    name = string
     path_rule = map(object({
-      backend_address_pool_name   = optional(string)
-      backend_http_settings_name  = optional(string)
-      firewall_policy_id          = optional(string)
-      name                        = string
-      paths                       = list(string)
+      backend_address_pool_name = optional(string)
+      backend_http_settings_name = optional(string)
+      firewall_policy_id = optional(string)
+      name = string
+      paths = list(string)
       redirect_configuration_name = optional(string)
-      rewrite_rule_set_name       = optional(string)
+      rewrite_rule_set_name = optional(string)
     }))
   }))
-  default = {}
+  default     = {}
 }
 
 variable "waf_configuration" {
   description = "waf configuration block configuration"
-  type = object({
-    enabled                  = bool
-    file_upload_limit_mb     = optional(number)
-    firewall_mode            = string
+  type        = object({
+    enabled = bool
+    file_upload_limit_mb = optional(number)
+    firewall_mode = string
     max_request_body_size_kb = optional(number)
-    request_body_check       = optional(bool)
-    rule_set_type            = optional(string)
-    rule_set_version         = string
+    request_body_check = optional(bool)
+    rule_set_type = optional(string)
+    rule_set_version = string
     disabled_rule_group = optional(map(object({
       rule_group_name = string
-      rules           = optional(list(number))
+      rules = optional(list(number))
     })))
     exclusion = optional(map(object({
-      match_variable          = string
-      selector                = optional(string)
+      match_variable = string
+      selector = optional(string)
       selector_match_operator = optional(string)
     })))
   })
-  default = null
+  default     = null
 }
 
