@@ -15,8 +15,25 @@ func GenerateMainTf(info *schema.ResourceInfo) string {
 	b.WriteString(fmt.Sprintf("resource \"%s\" \"this\" {\n", info.ResourceType))
 	b.WriteString("  count               = local.enabled ? 1 : 0\n\n")
 	b.WriteString(fmt.Sprintf("  name                = var.%s != null ? var.%s : module.this.id\n", nameVar, nameVar))
-	b.WriteString("  location            = var.location\n")
-	b.WriteString("  resource_group_name = var.resource_group_name\n")
+
+	// Only add location and resource_group_name if they exist in the schema
+	hasLocation := false
+	hasResourceGroupName := false
+	for _, attr := range info.Attributes {
+		if attr.Name == "location" {
+			hasLocation = true
+		}
+		if attr.Name == "resource_group_name" {
+			hasResourceGroupName = true
+		}
+	}
+
+	if hasLocation {
+		b.WriteString("  location            = var.location\n")
+	}
+	if hasResourceGroupName {
+		b.WriteString("  resource_group_name = var.resource_group_name\n")
+	}
 
 	// Collect attrs excluding standard ones
 	var otherAttrs []schema.ParsedAttribute
@@ -68,7 +85,8 @@ func writeTopLevelDynamicBlock(b *strings.Builder, block schema.ParsedBlock) {
 	if isSingleBlock(block) {
 		b.WriteString(fmt.Sprintf("    for_each = %s != null ? [%s] : []\n", varRef, varRef))
 	} else {
-		b.WriteString(fmt.Sprintf("    for_each = %s != null ? %s : []\n", varRef, varRef))
+		// Use map syntax for multi-value blocks per DPaaS standard
+		b.WriteString(fmt.Sprintf("    for_each = %s != null ? %s : {}\n", varRef, varRef))
 	}
 
 	b.WriteString("    content {\n")
@@ -91,7 +109,8 @@ func writeBlockContent(b *strings.Builder, block schema.ParsedBlock, iterVar str
 		if isSingleBlock(nested) {
 			b.WriteString(fmt.Sprintf("%s  for_each = %s != null ? [%s] : []\n", indent, nestedRef, nestedRef))
 		} else {
-			b.WriteString(fmt.Sprintf("%s  for_each = %s != null ? %s : []\n", indent, nestedRef, nestedRef))
+			// Use map syntax for multi-value blocks per DPaaS standard
+			b.WriteString(fmt.Sprintf("%s  for_each = %s != null ? %s : {}\n", indent, nestedRef, nestedRef))
 		}
 
 		b.WriteString(fmt.Sprintf("%s  content {\n", indent))

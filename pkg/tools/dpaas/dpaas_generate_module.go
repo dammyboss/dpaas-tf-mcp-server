@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -80,7 +81,14 @@ func dpaasGenerateModuleHandler(_ context.Context, request mcp.CallToolRequest, 
 		return DPaaSToolError(logger, "failed to write module files", err)
 	}
 
-	// 4. validate
+	// 4. format with terraform fmt
+	logger.Info("[dpaas] formatting module with terraform fmt …")
+	if err := formatModule(modulePath, logger); err != nil {
+		logger.Warnf("[dpaas] terraform fmt failed (non-fatal): %v", err)
+		// Don't fail the generation if fmt fails - it's not critical
+	}
+
+	// 5. validate
 	logger.Info("[dpaas] validating generated module …")
 	report, _ := validation.ValidateModule(modulePath, info)
 
@@ -133,4 +141,23 @@ func formatGenerationReport(info *schema.ResourceInfo, modulePath string, writte
 	}
 
 	return b.String()
+}
+
+// formatModule runs terraform fmt on the generated module
+func formatModule(modulePath string, logger *log.Logger) error {
+	// Run terraform fmt -recursive on the module directory
+	cmd := exec.Command("terraform", "fmt", "-recursive", modulePath)
+
+	// Capture output for logging
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("terraform fmt failed: %w\nOutput: %s", err, string(output))
+	}
+
+	// Log formatted files
+	if len(output) > 0 {
+		logger.Debugf("[dpaas] terraform fmt output:\n%s", string(output))
+	}
+
+	return nil
 }

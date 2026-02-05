@@ -35,16 +35,33 @@ func GenerateVariablesTf(info *schema.ResourceInfo) string {
 	b.WriteString("  default     = null\n")
 	b.WriteString("}\n\n")
 
-	// Always include resource_group_name and location
-	b.WriteString("variable \"resource_group_name\" {\n")
-	b.WriteString(fmt.Sprintf("  description = \"The name of the resource group in which to create the %s\"\n", info.DisplayName))
-	b.WriteString("  type        = string\n")
-	b.WriteString("}\n\n")
+	// Check if resource_group_name and location exist in schema
+	hasResourceGroupName := false
+	hasLocation := false
+	for _, attr := range info.Attributes {
+		if attr.Name == "resource_group_name" {
+			hasResourceGroupName = true
+		}
+		if attr.Name == "location" {
+			hasLocation = true
+		}
+	}
 
-	b.WriteString("variable \"location\" {\n")
-	b.WriteString("  description = \"Specifies the supported Azure location where the resource exists\"\n")
-	b.WriteString("  type        = string\n")
-	b.WriteString("}\n\n")
+	// Only include resource_group_name if it exists in schema
+	if hasResourceGroupName {
+		b.WriteString("variable \"resource_group_name\" {\n")
+		b.WriteString(fmt.Sprintf("  description = \"The name of the resource group in which to create the %s\"\n", info.DisplayName))
+		b.WriteString("  type        = string\n")
+		b.WriteString("}\n\n")
+	}
+
+	// Only include location if it exists in schema
+	if hasLocation {
+		b.WriteString("variable \"location\" {\n")
+		b.WriteString("  description = \"Specifies the supported Azure location where the resource exists\"\n")
+		b.WriteString("  type        = string\n")
+		b.WriteString("}\n\n")
+	}
 
 	// Other required attributes (excluding standard ones)
 	for _, attr := range info.Attributes {
@@ -111,7 +128,7 @@ func writeBlockVariable(b *strings.Builder, block schema.ParsedBlock) {
 		if isSingleBlock(block) {
 			b.WriteString("  default     = null\n")
 		} else {
-			b.WriteString("  default     = []\n")
+			b.WriteString("  default     = {}\n")
 		}
 	}
 
@@ -124,13 +141,10 @@ func blockToTypeExpr(block schema.ParsedBlock, baseIndent string) string {
 	if isSingleBlock(block) {
 		return objType
 	}
-	switch block.NestingMode {
-	case "list", "set":
-		return "list(" + objType + ")"
-	case "map":
-		return "map(" + objType + ")"
-	}
-	return objType
+
+	// Always use map for multi-value blocks per DPaaS standard
+	// This allows for named keys and easier override patterns
+	return "map(" + objType + ")"
 }
 
 func blockToObjectType(block schema.ParsedBlock, baseIndent string) string {
