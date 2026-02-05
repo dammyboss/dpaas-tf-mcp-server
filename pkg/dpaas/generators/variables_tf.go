@@ -9,6 +9,28 @@ import (
 	"github.com/hashicorp/terraform-mcp-server/pkg/dpaas/templates"
 )
 
+// nullLabelReservedVars contains variable names defined by null-label
+// that should not be overwritten by resource attributes
+var nullLabelReservedVars = map[string]bool{
+	"context": true, "enabled": true, "namespace": true,
+	"tenant": true, "environment": true, "stage": true,
+	"name": true, "delimiter": true, "attributes": true,
+	"labels_as_tags": true, "additional_tag_map": true,
+	"label_order": true, "regex_replace_chars": true,
+	"id_length_limit": true, "label_key_case": true,
+	"label_value_case": true, "descriptor_formats": true,
+	"tags": true,
+}
+
+// getVariableName returns the variable name for an attribute,
+// prefixing with resource short name if it conflicts with null-label
+func getVariableName(attrName string, shortName string) string {
+	if nullLabelReservedVars[attrName] && !isStandardVar(attrName) {
+		return shortName + "_" + attrName
+	}
+	return attrName
+}
+
 func GenerateVariablesTf(info *schema.ResourceInfo) string {
 	var b strings.Builder
 
@@ -88,7 +110,8 @@ func GenerateVariablesTf(info *schema.ResourceInfo) string {
 }
 
 func writeVariable(b *strings.Builder, attr schema.ParsedAttribute, info *schema.ResourceInfo) {
-	b.WriteString(fmt.Sprintf("variable \"%s\" {\n", attr.Name))
+	varName := getVariableName(attr.Name, info.ShortName)
+	b.WriteString(fmt.Sprintf("variable \"%s\" {\n", varName))
 
 	desc := attr.Description
 	if desc == "" {
@@ -105,8 +128,8 @@ func writeVariable(b *strings.Builder, attr schema.ParsedAttribute, info *schema
 	// Validation block for enum-valued string attributes
 	if attr.TFType == "string" && len(attr.EnumValues) > 0 && len(attr.EnumValues) < 20 {
 		b.WriteString("  validation {\n")
-		b.WriteString(fmt.Sprintf("    condition = var.%s == null || contains(%s, var.%s)\n", attr.Name, formatEnumList(attr.EnumValues), attr.Name))
-		b.WriteString(fmt.Sprintf("    error_message = \"%s must be one of: %s.\"\n", attr.Name, strings.Join(attr.EnumValues, ", ")))
+		b.WriteString(fmt.Sprintf("    condition = var.%s == null || contains(%s, var.%s)\n", varName, formatEnumList(attr.EnumValues), varName))
+		b.WriteString(fmt.Sprintf("    error_message = \"%s must be one of: %s.\"\n", varName, strings.Join(attr.EnumValues, ", ")))
 		b.WriteString("  }\n")
 	}
 

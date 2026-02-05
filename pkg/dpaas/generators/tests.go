@@ -67,8 +67,9 @@ func generateDefaultTest(info *schema.ResourceInfo) string {
 	if len(requiredAttrs) > 0 {
 		b.WriteString("\n  # Required attributes\n")
 		for _, attr := range requiredAttrs {
+			varName := getVariableName(attr.Name, info.ShortName)
 			exampleValue := generateExampleValue(attr)
-			b.WriteString(fmt.Sprintf("  %-27s = %s\n", attr.Name, exampleValue))
+			b.WriteString(fmt.Sprintf("  %-27s = %s\n", varName, exampleValue))
 		}
 	}
 

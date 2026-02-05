@@ -55,10 +55,11 @@ func GenerateMainTf(info *schema.ResourceInfo) string {
 
 		for _, a := range otherAttrs {
 			padding := strings.Repeat(" ", maxLen-len(a.Name))
+			varName := getVariableName(a.Name, info.ShortName)
 			if a.Required {
-				b.WriteString(fmt.Sprintf("  %s%s = var.%s\n", a.Name, padding, a.Name))
+				b.WriteString(fmt.Sprintf("  %s%s = var.%s\n", a.Name, padding, varName))
 			} else {
-				b.WriteString(fmt.Sprintf("  %s%s = try(var.%s, null)\n", a.Name, padding, a.Name))
+				b.WriteString(fmt.Sprintf("  %s%s = try(var.%s, null)\n", a.Name, padding, varName))
 			}
 		}
 	}
