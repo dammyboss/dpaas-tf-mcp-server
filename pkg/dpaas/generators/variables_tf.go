@@ -102,8 +102,8 @@ func writeVariable(b *strings.Builder, attr schema.ParsedAttribute, info *schema
 		b.WriteString("  default     = null\n")
 	}
 
-	// Validation block for enum values
-	if len(attr.EnumValues) > 0 && len(attr.EnumValues) < 20 {
+	// Validation block for enum-valued string attributes
+	if attr.TFType == "string" && len(attr.EnumValues) > 0 && len(attr.EnumValues) < 20 {
 		b.WriteString("  validation {\n")
 		b.WriteString(fmt.Sprintf("    condition = var.%s == null || contains(%s, var.%s)\n", attr.Name, formatEnumList(attr.EnumValues), attr.Name))
 		b.WriteString(fmt.Sprintf("    error_message = \"%s must be one of: %s.\"\n", attr.Name, strings.Join(attr.EnumValues, ", ")))
@@ -119,7 +119,6 @@ func writeVariable(b *strings.Builder, attr schema.ParsedAttribute, info *schema
 
 func writeBlockVariable(b *strings.Builder, block schema.ParsedBlock) {
 	b.WriteString(fmt.Sprintf("variable \"%s\" {\n", block.Name))
-	b.WriteString(fmt.Sprintf("  description = \"%s block configuration\"\n", strings.ReplaceAll(block.Name, "_", " ")))
 
 	typeExpr := blockToTypeExpr(block, "  ")
 	b.WriteString(fmt.Sprintf("  type        = %s\n", typeExpr))
@@ -132,7 +131,90 @@ func writeBlockVariable(b *strings.Builder, block schema.ParsedBlock) {
 		}
 	}
 
+	// Heredoc description listing all attributes and nested blocks
+	b.WriteString("  description = <<-DESCRIPTION\n")
+	writeBlockDescriptionLines(b, block, "  ")
+	b.WriteString("  DESCRIPTION\n")
+
+	// Validation blocks for enum-valued string attributes
+	writeBlockValidations(b, block)
+
 	b.WriteString("}\n\n")
+}
+
+// writeBlockDescriptionLines writes a structured description for a block variable,
+// recursively documenting nested blocks with --- separators and indentation.
+func writeBlockDescriptionLines(b *strings.Builder, block schema.ParsedBlock, indent string) {
+	// Sorted attributes for stable output
+	sortedAttrs := make([]schema.ParsedAttribute, len(block.Attributes))
+	copy(sortedAttrs, block.Attributes)
+	sort.Slice(sortedAttrs, func(i, j int) bool {
+		return sortedAttrs[i].Name < sortedAttrs[j].Name
+	})
+
+	for _, attr := range sortedAttrs {
+		b.WriteString(fmt.Sprintf("%s- `%s` - %s\n", indent, attr.Name, attrDescription(attr)))
+	}
+
+	// Nested blocks with --- separator
+	sortedBlocks := make([]schema.ParsedBlock, len(block.Blocks))
+	copy(sortedBlocks, block.Blocks)
+	sort.Slice(sortedBlocks, func(i, j int) bool {
+		return sortedBlocks[i].Name < sortedBlocks[j].Name
+	})
+
+	for _, nested := range sortedBlocks {
+		b.WriteString("\n")
+		b.WriteString(indent + "---\n")
+		b.WriteString(fmt.Sprintf("%s`%s` block supports the following:\n", indent, nested.Name))
+		writeBlockDescriptionLines(b, nested, indent+"  ")
+	}
+}
+
+// attrDescription returns the docs description if available, otherwise a generated fallback.
+func attrDescription(attr schema.ParsedAttribute) string {
+	if attr.Description != "" {
+		return attr.Description
+	}
+	req := "Optional"
+	if attr.Required {
+		req = "Required"
+	}
+	return fmt.Sprintf("(%s) The %s value.", req, strings.ReplaceAll(attr.Name, "_", " "))
+}
+
+// writeBlockValidations emits validation blocks for string attributes that have
+// known enum values. Single blocks use direct property access; map blocks use
+// an alltrue([for ...]) comprehension.
+func writeBlockValidations(b *strings.Builder, block schema.ParsedBlock) {
+	isSingle := isSingleBlock(block)
+
+	for _, attr := range block.Attributes {
+		if attr.TFType != "string" || len(attr.EnumValues) == 0 || len(attr.EnumValues) >= 20 {
+			continue
+		}
+
+		enumList := formatEnumList(attr.EnumValues)
+		qualifiedName := block.Name + "." + attr.Name
+
+		b.WriteString("  validation {\n")
+		if isSingle {
+			if block.Required {
+				b.WriteString(fmt.Sprintf("    condition     = contains(%s, var.%s.%s)\n", enumList, block.Name, attr.Name))
+			} else {
+				b.WriteString(fmt.Sprintf("    condition     = var.%s == null || contains(%s, var.%s.%s)\n", block.Name, enumList, block.Name, attr.Name))
+			}
+		} else {
+			// map(object) — alltrue over the map; handles empty map (alltrue([]) == true)
+			check := fmt.Sprintf("contains(%s, v.%s)", enumList, attr.Name)
+			if !attr.Required {
+				check = fmt.Sprintf("v.%s == null || %s", attr.Name, check)
+			}
+			b.WriteString(fmt.Sprintf("    condition     = alltrue([for k, v in var.%s : %s])\n", block.Name, check))
+		}
+		b.WriteString(fmt.Sprintf("    error_message = \"%s must be one of: %s.\"\n", qualifiedName, strings.Join(attr.EnumValues, ", ")))
+		b.WriteString("  }\n")
+	}
 }
 
 func blockToTypeExpr(block schema.ParsedBlock, baseIndent string) string {

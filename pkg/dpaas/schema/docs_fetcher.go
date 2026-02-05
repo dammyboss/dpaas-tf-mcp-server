@@ -12,11 +12,14 @@ import (
 // GitHub raw content URL for azurerm provider docs
 const azurermDocsBase = "https://raw.githubusercontent.com/hashicorp/terraform-provider-azurerm/main/website/docs/r/"
 
-// FetchDocsEnumValues fetches the provider docs for a resource from GitHub
-// and extracts enum values per attribute name. Returns a map of
-// "attribute_name" -> []string of valid enum values.
-// For block attributes the key is "block_name.attribute_name".
-func FetchDocsEnumValues(resourceType string) map[string][]string {
+// DocsInfo holds enum values and descriptions extracted from provider docs.
+type DocsInfo struct {
+	Enums        map[string][]string // qualified key → allowed values
+	Descriptions map[string]string   // qualified key → description text
+}
+
+// FetchDocsInfo fetches provider docs and extracts both enum values and descriptions.
+func FetchDocsInfo(resourceType string) *DocsInfo {
 	shortName := strings.TrimPrefix(resourceType, "azurerm_")
 	url := azurermDocsBase + shortName + ".html.markdown"
 
@@ -32,32 +35,38 @@ func FetchDocsEnumValues(resourceType string) map[string][]string {
 		return nil
 	}
 
-	return parseDocsEnums(string(body))
+	return parseDocsInfo(string(body))
 }
 
-// parseDocsEnums parses the raw markdown documentation and extracts
-// enum values from "Possible values are" / "Valid values are" patterns.
-// It tracks which block context it is in to build qualified keys like "sku.name".
-func parseDocsEnums(docs string) map[string][]string {
-	result := make(map[string][]string)
+// FetchDocsEnumValues is a convenience wrapper returning only enum values.
+func FetchDocsEnumValues(resourceType string) map[string][]string {
+	info := FetchDocsInfo(resourceType)
+	if info == nil {
+		return nil
+	}
+	return info.Enums
+}
 
-	// Patterns that indicate enum values
+// parseDocsInfo parses raw markdown and extracts both enum values and
+// descriptions for every attribute, tracking block context via headers and
+// the "A `x` block supports the following:" convention.
+func parseDocsInfo(docs string) *DocsInfo {
+	enums := make(map[string][]string)
+	descriptions := make(map[string]string)
+
 	enumPattern := regexp.MustCompile(`(?i)(?:possible|valid|allowed)\s+values?\s+(?:are|include)\s*[:=]?\s*(.+?)[.\n]`)
-
-	// Pattern to detect attribute reference headers like "* `name`" or "* `sku.name`"
-	attrPattern := regexp.MustCompile("(?m)^\\*\\s+`([a-zA-Z0-9_.]+)`")
+	// Group 1 = attr name, Group 2 = rest of the line (description text)
+	attrPattern := regexp.MustCompile("(?m)^\\*\\s+`([a-zA-Z0-9_.]+)`\\s*-?\\s*(.*)")
+	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
 
 	lines := strings.Split(docs, "\n")
 
-	// Track current block context via two patterns:
-	// 1. Markdown headers like "### sku"
-	// 2. Azure docs convention: "A `sku` block supports the following:"
 	var currentBlock string
 	headerBlockPattern := regexp.MustCompile(`^#{2,4}\s+` + "`?" + `([a-z_]+)` + "`?")
 	supportsBlockPattern := regexp.MustCompile("(?i)^(?:a|an)\\s+`([a-z_]+)`\\s+block\\s+supports")
 
 	for i, line := range lines {
-		// Detect block context from "A `block_name` block supports the following:"
+		// Detect block context
 		if m := supportsBlockPattern.FindStringSubmatch(line); m != nil {
 			currentBlock = m[1]
 		} else if m := headerBlockPattern.FindStringSubmatch(line); m != nil {
@@ -67,7 +76,6 @@ func parseDocsEnums(docs string) map[string][]string {
 			}
 		}
 
-		// Detect attribute + enum on same line or nearby
 		attrMatch := attrPattern.FindStringSubmatch(line)
 		if attrMatch == nil {
 			continue
@@ -75,8 +83,18 @@ func parseDocsEnums(docs string) map[string][]string {
 
 		attrName := attrMatch[1]
 
-		// Look for enum values on this line and continuation lines,
-		// but stop at the next attribute marker to avoid cross-attribute bleeding
+		// Build qualified key
+		key := attrName
+		if !strings.Contains(attrName, ".") && currentBlock != "" {
+			key = currentBlock + "." + attrName
+		}
+
+		// Extract description (group 2), strip markdown links
+		if desc := strings.TrimSpace(attrMatch[2]); desc != "" {
+			descriptions[key] = linkPattern.ReplaceAllString(desc, "$1")
+		}
+
+		// Enum extraction: search current line + continuation lines, stop at next attr
 		end := i + 1
 		for end < len(lines) && end < i+4 {
 			if attrPattern.MatchString(lines[end]) {
@@ -96,16 +114,10 @@ func parseDocsEnums(docs string) map[string][]string {
 			continue
 		}
 
-		// Build the qualified key
-		key := attrName
-		if !strings.Contains(attrName, ".") && currentBlock != "" {
-			key = currentBlock + "." + attrName
-		}
-
-		result[key] = vals
+		enums[key] = vals
 	}
 
-	return result
+	return &DocsInfo{Enums: enums, Descriptions: descriptions}
 }
 
 // parseEnumList splits a comma/and-separated list of enum values
@@ -160,6 +172,44 @@ func mergeBlockEnums(block *ParsedBlock, prefix string, docsEnums map[string][]s
 	}
 	for i, nested := range block.Blocks {
 		mergeBlockEnums(&block.Blocks[i], prefix+"."+nested.Name, docsEnums)
+	}
+}
+
+// MergeDocsInfo merges both enum values and descriptions into ResourceInfo.
+func MergeDocsInfo(info *ResourceInfo, docsInfo *DocsInfo) {
+	if docsInfo == nil {
+		return
+	}
+	MergeDocsEnums(info, docsInfo.Enums)
+	mergeDocsDescriptions(info, docsInfo.Descriptions)
+}
+
+func mergeDocsDescriptions(info *ResourceInfo, descriptions map[string]string) {
+	for i, attr := range info.Attributes {
+		if info.Attributes[i].Description == "" {
+			if desc, ok := descriptions[attr.Name]; ok {
+				info.Attributes[i].Description = desc
+			}
+		}
+	}
+	for i, block := range info.Blocks {
+		mergeBlockDescriptions(&info.Blocks[i], block.Name, descriptions)
+	}
+}
+
+func mergeBlockDescriptions(block *ParsedBlock, prefix string, descriptions map[string]string) {
+	for i, attr := range block.Attributes {
+		if block.Attributes[i].Description == "" {
+			key := prefix + "." + attr.Name
+			if desc, ok := descriptions[key]; ok {
+				block.Attributes[i].Description = desc
+			} else if desc, ok := descriptions[attr.Name]; ok {
+				block.Attributes[i].Description = desc
+			}
+		}
+	}
+	for i, nested := range block.Blocks {
+		mergeBlockDescriptions(&block.Blocks[i], prefix+"."+nested.Name, descriptions)
 	}
 }
 
