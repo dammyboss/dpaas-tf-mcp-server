@@ -41,7 +41,7 @@ module "application_gateway" {
   gateway_ip_configuration = {
     gateway_ip_configuration-1 = {
       name      = "example-name"
-      subnet_id = azurerm_subnet.example.id
+      subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Example.Provider/resources/example-subnet"
     }
   }
   http_listener = {

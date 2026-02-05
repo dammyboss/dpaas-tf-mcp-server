@@ -112,99 +112,31 @@ func isStandardTestVar(name string) bool {
 }
 
 // generateExampleValue creates a sensible example value for a required attribute
+// Fully dynamic - no hardcoded resource-specific values
 func generateExampleValue(attr schema.ParsedAttribute) string {
-	// Use enum values if available
+	// Use enum values if available (from schema)
 	if len(attr.EnumValues) > 0 {
 		return fmt.Sprintf("\"%s\"", attr.EnumValues[0])
-	}
-
-	// Common Azure attribute patterns with smart formatting
-	switch attr.Name {
-	case "location":
-		return "\"East US 2\""
-	case "resource_group_name":
-		return "\"eits-Sandbox-mspsandbox-BU-07959a-rg\""
-	case "account_tier":
-		return "\"Standard\""
-	case "account_replication_type":
-		return "\"LRS\""
-	case "sku_name", "sku":
-		return "\"Standard\""
-	case "os_type":
-		return "\"Linux\""
-	case "address_space":
-		return "[\"10.0.0.0/16\"]"
-	case "address_prefixes":
-		return "[\"10.0.1.0/24\"]"
-
-	// Azure-specific resource references (no quotes)
-	case "tenant_id":
-		return "data.azurerm_client_config.current.tenant_id"
-	case "service_plan_id":
-		return "azurerm_service_plan.example.id"
-	case "app_service_plan_id":
-		return "azurerm_app_service_plan.example.id"
-	case "subnet_id":
-		return "azurerm_subnet.example.id"
-	case "virtual_network_id":
-		return "azurerm_virtual_network.example.id"
-	case "network_security_group_id":
-		return "azurerm_network_security_group.example.id"
-	case "public_ip_address_id":
-		return "azurerm_public_ip.example.id"
-	case "key_vault_id":
-		return "azurerm_key_vault.example.id"
-	case "storage_account_id":
-		return "azurerm_storage_account.example.id"
-	case "log_analytics_workspace_id":
-		return "azurerm_log_analytics_workspace.example.id"
-
-	// Common attribute patterns
-	case "administrator_login":
-		return "\"sqladmin\""
-	case "administrator_login_password":
-		return "\"P@ssw0rd1234!\""
-	case "version":
-		return "\"12.0\""
-	case "enable_https_traffic_only":
-		return "true"
-	case "min_tls_version":
-		return "\"TLS1_2\""
-	case "https_only":
-		return "true"
-	case "client_affinity_enabled":
-		return "false"
-	case "purge_protection_enabled":
-		return "false"
-	case "soft_delete_retention_days":
-		return "7"
-	case "enabled_for_deployment":
-		return "false"
-	case "enabled_for_disk_encryption":
-		return "false"
-	case "enabled_for_template_deployment":
-		return "false"
-	case "enable_rbac_authorization":
-		return "true"
-	}
-
-	// Check if attribute looks like a resource ID reference
-	if strings.HasSuffix(attr.Name, "_id") && !strings.Contains(attr.Name, "tenant") {
-		// Generate a resource reference without quotes
-		resourceType := strings.TrimSuffix(attr.Name, "_id")
-		return fmt.Sprintf("azurerm_%s.example.id", resourceType)
 	}
 
 	// Type-based defaults
 	switch attr.TFType {
 	case "string":
-		// Check if it looks like a name field
+		// ID references get placeholder Azure resource IDs
+		if strings.HasSuffix(attr.Name, "_id") {
+			return fmt.Sprintf("\"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example-rg/providers/Example.Provider/resources/example-%s\"", strings.TrimSuffix(attr.Name, "_id"))
+		}
+		// Name fields
 		if strings.Contains(attr.Name, "name") {
 			return fmt.Sprintf("\"example-%s\"", strings.ReplaceAll(attr.Name, "_", "-"))
 		}
-		// Check for version fields
+		// Version fields
 		if strings.Contains(attr.Name, "version") {
 			return "\"1.0\""
+		}
+		// Password/secret fields
+		if strings.Contains(attr.Name, "password") || strings.Contains(attr.Name, "secret") {
+			return "\"P@ssw0rd1234!\""
 		}
 		return "\"example-value\""
 	case "bool":
@@ -237,58 +169,7 @@ func generateExampleBlock(block schema.ParsedBlock) string {
 	// Create a map key for multi-value blocks
 	mapKey := fmt.Sprintf("%s-1", block.Name)
 
-	// Special handling for known Azure block patterns
-	switch block.Name {
-	case "monitor_config":
-		b.WriteString("  monitor_config = {\n")
-		b.WriteString("    monitor-config-1 = {\n")
-		b.WriteString("      protocol                     = \"HTTP\"\n")
-		b.WriteString("      port                         = 80\n")
-		b.WriteString("      path                         = \"/\"\n")
-		b.WriteString("      interval_in_seconds          = 30\n")
-		b.WriteString("      timeout_in_seconds           = 10\n")
-		b.WriteString("      tolerated_number_of_failures = 3\n")
-		b.WriteString("    }\n")
-		b.WriteString("  }\n")
-		return b.String()
-
-	case "dns_config":
-		b.WriteString("  dns_config = {\n")
-		b.WriteString("    dns-config-1 = {\n")
-		b.WriteString("      relative_name = \"example-traffic-manager\"\n")
-		b.WriteString("      ttl           = 60\n")
-		b.WriteString("    }\n")
-		b.WriteString("  }\n")
-		return b.String()
-
-	case "ip_configuration":
-		b.WriteString("  ip_configuration = {\n")
-		b.WriteString("    ip-configuration-1 = {\n")
-		b.WriteString("      name                 = \"example-ip-config\"\n")
-		b.WriteString("      subnet_id            = azurerm_subnet.example.id\n")
-		b.WriteString("      public_ip_address_id = azurerm_public_ip.example.id\n")
-		b.WriteString("    }\n")
-		b.WriteString("  }\n")
-		return b.String()
-
-	case "identity":
-		b.WriteString("  identity = {\n")
-		b.WriteString("    identity-1 = {\n")
-		b.WriteString("      type = \"SystemAssigned\"\n")
-		b.WriteString("    }\n")
-		b.WriteString("  }\n")
-		return b.String()
-
-	case "site_config":
-		b.WriteString("  site_config = {\n")
-		b.WriteString("    site-config-1 = {\n")
-		b.WriteString("      always_on = true\n")
-		b.WriteString("    }\n")
-		b.WriteString("  }\n")
-		return b.String()
-	}
-
-	// Generic block generation
+	// Fully dynamic block generation based on schema
 	if isSingle {
 		// Single block: use object syntax
 		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
