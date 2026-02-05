@@ -261,23 +261,39 @@ variable "location" {
 variable "account_replication_type" {
   description = "(Required) Defines the type of replication to use for this storage account. Valid options are `LRS`, `GRS`, `RAGRS`, `ZRS`, `GZRS` and `RAGZRS`. Changing this forces a new resource to be created wh..."
   type        = string
+  validation {
+    condition     = var.account_replication_type == null || contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.account_replication_type)
+    error_message = "account_replication_type must be one of: LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS."
+  }
 }
 
 variable "account_tier" {
   description = "(Required) Defines the Tier to use for this storage account. Valid options are `Standard` and `Premium`. For `BlockBlobStorage` and `FileStorage` accounts only `Premium` is valid. Changing this for..."
   type        = string
+  validation {
+    condition     = var.account_tier == null || contains(["Standard", "Premium"], var.account_tier)
+    error_message = "account_tier must be one of: Standard, Premium."
+  }
 }
 
 variable "access_tier" {
   description = "(Optional) Defines the access tier for `BlobStorage`, `FileStorage` and `StorageV2` accounts. Valid options are `Hot`, `Cool`, `Cold` and `Premium`. Defaults to `Hot`."
   type        = string
   default     = null
+  validation {
+    condition     = var.access_tier == null || contains(["Hot", "Cool", "Cold", "Premium"], var.access_tier)
+    error_message = "access_tier must be one of: Hot, Cool, Cold, Premium."
+  }
 }
 
 variable "account_kind" {
   description = "(Optional) Defines the Kind of account. Valid options are `BlobStorage`, `BlockBlobStorage`, `FileStorage`, `Storage` and `StorageV2`. Defaults to `StorageV2`."
   type        = string
   default     = null
+  validation {
+    condition     = var.account_kind == null || contains(["BlobStorage", "BlockBlobStorage", "FileStorage", "Storage", "StorageV2"], var.account_kind)
+    error_message = "account_kind must be one of: BlobStorage, BlockBlobStorage, FileStorage, Storage, StorageV2."
+  }
 }
 
 variable "allow_nested_items_to_be_public" {

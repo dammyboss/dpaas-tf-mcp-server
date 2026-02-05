@@ -54,7 +54,7 @@ func parseDocsInfo(docs string) *DocsInfo {
 	enums := make(map[string][]string)
 	descriptions := make(map[string]string)
 
-	enumPattern := regexp.MustCompile(`(?i)(?:possible|valid|allowed)\s+values?\s+(?:are|include)\s*[:=]?\s*(.+?)[.\n]`)
+	enumPattern := regexp.MustCompile(`(?i)(?:possible|valid|allowed)\s+(?:values?|options?)\s+(?:are|include|is)\s*[:=]?\s*(.+?)[.\n]`)
 	// Group 1 = attr name, Group 2 = rest of the line (description text)
 	attrPattern := regexp.MustCompile("(?m)^\\*\\s+`([a-zA-Z0-9_.]+)`\\s*-?\\s*(.*)")
 	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
