@@ -1,0 +1,38 @@
+# Copyright IBM Corp. 2025
+# SPDX-License-Identifier: MPL-2.0
+
+# Docker Compose for terraform-mcp-server
+# 
+# Usage:
+#   HTTP mode:  docker compose up terraform-mcp-http
+#   Build:      docker compose build
+#
+# For stdio mode, use docker run directly:
+#   docker run -i --rm terraform-mcp-dpaas
+
+services:
+  # HTTP/SSE mode - accessible via network
+  terraform-mcp-http:
+    build:
+      context: .
+      target: dpaas
+    image: terraform-mcp-dpaas:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - TRANSPORT_MODE=http
+      - TRANSPORT_HOST=0.0.0.0
+      - TRANSPORT_PORT=8080
+      - MCP_ENDPOINT=/mcp
+    volumes:
+      # Mount terraform working directory for schema extraction
+      - terraform-workdir:/app/terraform-workdir
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/mcp"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  terraform-workdir:

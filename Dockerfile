@@ -69,6 +69,38 @@ ENTRYPOINT ["/bin/terraform-mcp-server"]
 
 # ===================================
 #
+#   DPaaS image with Terraform for schema extraction
+#
+# ===================================
+
+# dpaas-base provides Alpine with Terraform installed
+FROM docker.mirror.hashicorp.services/alpine:3.22@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 AS dpaas-base
+ARG TERRAFORM_VERSION=1.9.8
+RUN apk add --no-cache ca-certificates curl unzip \
+    && curl -fsSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip \
+    && unzip terraform.zip \
+    && mv terraform /usr/local/bin/ \
+    && rm terraform.zip \
+    && terraform version
+
+# dpaas runs the MCP server with Terraform available for schema extraction
+# Build with: docker build --target=dpaas -t terraform-mcp-dpaas .
+# -----------------------------------
+FROM dpaas-base AS dpaas
+WORKDIR /app
+COPY --from=devbuild /build/terraform-mcp-server /app/terraform-mcp-server
+# Create terraform working directory
+RUN mkdir -p /app/terraform-workdir
+# Environment variables for transport mode
+ENV TRANSPORT_MODE=stdio
+ENV TRANSPORT_HOST=0.0.0.0
+ENV TRANSPORT_PORT=8080
+ENV MCP_ENDPOINT=/mcp
+EXPOSE 8080
+ENTRYPOINT ["/app/terraform-mcp-server"]
+
+# ===================================
+#
 #   Set default target to 'dev'.
 #
 # ===================================
