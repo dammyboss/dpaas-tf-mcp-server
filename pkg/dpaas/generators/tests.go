@@ -269,7 +269,8 @@ func generateDisabledTest(info *schema.ResourceInfo) string {
 	return b.String()
 }
 
-// generateCompleteExampleBlock generates a block with ALL attributes (required + optional).
+// generateCompleteExampleBlock generates a block with ALL attributes (required + optional),
+// including nested blocks recursively.
 func generateCompleteExampleBlock(block schema.ParsedBlock) string {
 	var b strings.Builder
 
@@ -278,31 +279,34 @@ func generateCompleteExampleBlock(block schema.ParsedBlock) string {
 
 	if isSingle {
 		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
-		for _, attr := range block.Attributes {
-			exampleValue := generateExampleValue(attr)
-			padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
-			b.WriteString(fmt.Sprintf("    %s%s = %s\n", attr.Name, padding, exampleValue))
-		}
-		if len(block.Attributes) == 0 {
-			b.WriteString(fmt.Sprintf("    # Configure %s attributes\n", block.Name))
-		}
+		writeCompleteBlockContent(&b, block, "    ")
 		b.WriteString("  }\n")
 	} else {
 		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
 		b.WriteString(fmt.Sprintf("    %s = {\n", mapKey))
-		for _, attr := range block.Attributes {
-			exampleValue := generateExampleValue(attr)
-			padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
-			b.WriteString(fmt.Sprintf("      %s%s = %s\n", attr.Name, padding, exampleValue))
-		}
-		if len(block.Attributes) == 0 {
-			b.WriteString(fmt.Sprintf("      # Configure %s attributes\n", block.Name))
-		}
+		writeCompleteBlockContent(&b, block, "      ")
 		b.WriteString("    }\n")
 		b.WriteString("  }\n")
 	}
 
 	return b.String()
+}
+
+// writeCompleteBlockContent writes all attributes and nested blocks at the given indent level.
+func writeCompleteBlockContent(b *strings.Builder, block schema.ParsedBlock, indent string) {
+	for _, attr := range block.Attributes {
+		exampleValue := generateExampleValue(attr)
+		padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
+		b.WriteString(fmt.Sprintf("%s%s%s = %s\n", indent, attr.Name, padding, exampleValue))
+	}
+	for _, nested := range block.Blocks {
+		b.WriteString(fmt.Sprintf("%s%s = {\n", indent, nested.Name))
+		writeCompleteBlockContent(b, nested, indent+"  ")
+		b.WriteString(fmt.Sprintf("%s}\n", indent))
+	}
+	if len(block.Attributes) == 0 && len(block.Blocks) == 0 {
+		b.WriteString(fmt.Sprintf("%s# Configure %s attributes\n", indent, block.Name))
+	}
 }
 
 // isStandardTestVar identifies variables that are handled specially in the module
