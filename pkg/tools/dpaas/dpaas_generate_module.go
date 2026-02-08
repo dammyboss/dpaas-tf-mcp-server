@@ -40,6 +40,8 @@ All arguments from the provider schema are included — nothing is hardcoded.`),
 			mcp.WithString("output_path",
 				mcp.Required(),
 				mcp.Description("Parent directory where the module folder will be created (module will be named expn-tf-azure-{resource})")),
+			mcp.WithString("test_scenarios",
+				mcp.Description("Comma-separated list of test scenarios to generate. Available: default, complete, disabled. Default: 'default'. Example: 'default,complete,disabled'")),
 		),
 		Handler: func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			return dpaasGenerateModuleHandler(ctx, request, logger)
@@ -79,11 +81,16 @@ func dpaasGenerateModuleHandler(_ context.Context, request mcp.CallToolRequest, 
 		logger.Warn("[dpaas] could not fetch provider docs – falling back to schema-only enums")
 	}
 
-	// 3. generate all files
-	logger.Infof("[dpaas] generating module files for %s", info.ModuleName)
-	module := generators.GenerateModule(info)
+	// 3. parse test scenarios
+	scenariosStr := request.GetString("test_scenarios", "")
+	scenarios := parseTestScenarios(scenariosStr)
+	logger.Infof("[dpaas] test scenarios: %v", scenarios)
 
-	// 3. write to disk using the correct DPaaS module naming convention
+	// 4. generate all files
+	logger.Infof("[dpaas] generating module files for %s", info.ModuleName)
+	module := generators.GenerateModule(info, scenarios)
+
+	// 5. write to disk using the correct DPaaS module naming convention
 	// The module folder should always be: expn-tf-azure-{resource}
 	modulePath := filepath.Join(outputPath, info.ModuleName)
 	written, err := generators.WriteModule(modulePath, module)
@@ -91,14 +98,14 @@ func dpaasGenerateModuleHandler(_ context.Context, request mcp.CallToolRequest, 
 		return DPaaSToolError(logger, "failed to write module files", err)
 	}
 
-	// 4. format with terraform fmt
+	// 6. format with terraform fmt
 	logger.Info("[dpaas] formatting module with terraform fmt …")
 	if err := formatModule(modulePath, logger); err != nil {
 		logger.Warnf("[dpaas] terraform fmt failed (non-fatal): %v", err)
 		// Don't fail the generation if fmt fails - it's not critical
 	}
 
-	// 5. validate
+	// 7. validate
 	logger.Info("[dpaas] validating generated module …")
 	report, _ := validation.ValidateModule(modulePath, info)
 
@@ -151,6 +158,26 @@ func formatGenerationReport(info *schema.ResourceInfo, modulePath string, writte
 	}
 
 	return b.String()
+}
+
+// parseTestScenarios parses comma-separated scenario names.
+// Returns ["default"] if input is empty.
+func parseTestScenarios(raw string) []string {
+	if raw == "" {
+		return []string{"default"}
+	}
+	valid := map[string]bool{"default": true, "complete": true, "disabled": true}
+	var scenarios []string
+	for _, s := range strings.Split(raw, ",") {
+		s = strings.TrimSpace(strings.ToLower(s))
+		if valid[s] {
+			scenarios = append(scenarios, s)
+		}
+	}
+	if len(scenarios) == 0 {
+		return []string{"default"}
+	}
+	return scenarios
 }
 
 // formatModule runs terraform fmt on the generated module

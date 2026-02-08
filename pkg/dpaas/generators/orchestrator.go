@@ -10,7 +10,8 @@ import (
 )
 
 // GenerateModule produces all files for a DPaaS innersource module.
-func GenerateModule(info *schema.ResourceInfo) GeneratedModule {
+// scenarios controls which test scenarios are generated (default, complete, disabled).
+func GenerateModule(info *schema.ResourceInfo, scenarios []string) GeneratedModule {
 	m := GeneratedModule{}
 
 	// Static files (byte-for-byte copies)
@@ -28,7 +29,7 @@ func GenerateModule(info *schema.ResourceInfo) GeneratedModule {
 	m["CHANGELOG.md"] = GenerateChangelog(info)
 
 	// Tests
-	for k, v := range GenerateTests(info) {
+	for k, v := range GenerateTests(info, scenarios) {
 		m[k] = v
 	}
 

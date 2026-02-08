@@ -8,12 +8,28 @@ import (
 	"github.com/hashicorp/terraform-mcp-server/pkg/dpaas/templates"
 )
 
-func GenerateTests(info *schema.ResourceInfo) map[string]string {
+func GenerateTests(info *schema.ResourceInfo, scenarios []string) map[string]string {
 	files := map[string]string{}
 
-	// Default test
-	files["tests/default/main.tf"] = generateDefaultTest(info)
-	files["tests/default/versions.tf"] = templates.VersionsTestTf
+	scenarioSet := map[string]bool{}
+	for _, s := range scenarios {
+		scenarioSet[s] = true
+	}
+
+	if scenarioSet["default"] {
+		files["tests/default/main.tf"] = generateDefaultTest(info)
+		files["tests/default/versions.tf"] = templates.VersionsTestTf
+	}
+
+	if scenarioSet["complete"] {
+		files["tests/complete/main.tf"] = generateCompleteTest(info)
+		files["tests/complete/versions.tf"] = templates.VersionsTestTf
+	}
+
+	if scenarioSet["disabled"] {
+		files["tests/disabled/main.tf"] = generateDisabledTest(info)
+		files["tests/disabled/versions.tf"] = templates.VersionsTestTf
+	}
 
 	return files
 }
@@ -96,6 +112,195 @@ func generateDefaultTest(info *schema.ResourceInfo) string {
 	b.WriteString("    \"Environment\" = \"sbx\"\n")
 	b.WriteString("  }\n")
 	b.WriteString("}\n")
+
+	return b.String()
+}
+
+// generateCompleteTest creates a test that sets ALL attributes and blocks.
+// Proves every variable the module exposes is wirable without syntax/type errors.
+func generateCompleteTest(info *schema.ResourceInfo) string {
+	var b strings.Builder
+
+	moduleName := strings.ReplaceAll(info.ShortName, "_", "_")
+
+	b.WriteString(fmt.Sprintf("module \"%s\" {\n\n", moduleName))
+	b.WriteString("  source = \"../..\"\n\n")
+	b.WriteString("  enabled = true\n\n")
+	b.WriteString("  namespace   = \"expn\"\n")
+	b.WriteString("  tenant      = \"msp\"\n")
+	b.WriteString("  environment = \"sbx\"\n")
+	b.WriteString("  name        = \"complete\"\n\n")
+
+	// Resource name
+	resourceNameVar := info.ShortName + "_name"
+	exampleName := strings.ReplaceAll(info.ShortName, "_", "-")
+	b.WriteString(fmt.Sprintf("  %-27s = \"example-%s\"\n", resourceNameVar, exampleName))
+
+	// Add location and resource_group_name if they exist
+	hasLocation := false
+	hasResourceGroupName := false
+	for _, attr := range info.Attributes {
+		if attr.Name == "location" {
+			hasLocation = true
+		}
+		if attr.Name == "resource_group_name" {
+			hasResourceGroupName = true
+		}
+	}
+	if hasLocation {
+		b.WriteString(fmt.Sprintf("  %-27s = %s\n", "location", "\"East US 2\""))
+	}
+	if hasResourceGroupName {
+		b.WriteString(fmt.Sprintf("  %-27s = %s\n", "resource_group_name", "\"eits-Sandbox-mspsandbox-BU-07959a-rg\""))
+	}
+
+	// All non-standard attributes (required + optional)
+	var attrs []schema.ParsedAttribute
+	for _, attr := range info.Attributes {
+		if !isStandardTestVar(attr.Name) {
+			attrs = append(attrs, attr)
+		}
+	}
+
+	if len(attrs) > 0 {
+		b.WriteString("\n  # All attributes\n")
+		for _, attr := range attrs {
+			varName := getVariableName(attr.Name, info.ShortName)
+			exampleValue := generateExampleValue(attr)
+			b.WriteString(fmt.Sprintf("  %-27s = %s\n", varName, exampleValue))
+		}
+	}
+
+	// All blocks (required + optional)
+	if len(info.Blocks) > 0 {
+		b.WriteString("\n  # All blocks\n")
+		for _, block := range info.Blocks {
+			exampleBlock := generateCompleteExampleBlock(block)
+			b.WriteString(exampleBlock)
+		}
+	}
+
+	// Tags
+	b.WriteString("\n  tags = {\n")
+	b.WriteString("    \"CostString\"  = \"0000.111.11.22\"\n")
+	b.WriteString("    \"AppID\"       = \"0\"\n")
+	b.WriteString("    \"Environment\" = \"sbx\"\n")
+	b.WriteString("  }\n")
+	b.WriteString("}\n")
+
+	return b.String()
+}
+
+// generateDisabledTest creates a test with enabled=false.
+// Proves the module can be cleanly skipped (count=0) without errors.
+func generateDisabledTest(info *schema.ResourceInfo) string {
+	var b strings.Builder
+
+	moduleName := strings.ReplaceAll(info.ShortName, "_", "_")
+
+	b.WriteString(fmt.Sprintf("module \"%s\" {\n\n", moduleName))
+	b.WriteString("  source = \"../..\"\n\n")
+	b.WriteString("  enabled = false\n\n")
+	b.WriteString("  namespace   = \"expn\"\n")
+	b.WriteString("  tenant      = \"msp\"\n")
+	b.WriteString("  environment = \"sbx\"\n")
+	b.WriteString("  name        = \"disabled\"\n\n")
+
+	// Still need to provide required variables (they have no defaults)
+	hasLocation := false
+	hasResourceGroupName := false
+	for _, attr := range info.Attributes {
+		if attr.Name == "location" {
+			hasLocation = true
+		}
+		if attr.Name == "resource_group_name" {
+			hasResourceGroupName = true
+		}
+	}
+
+	if hasLocation {
+		b.WriteString(fmt.Sprintf("  %-27s = %s\n", "location", "\"East US 2\""))
+	}
+	if hasResourceGroupName {
+		b.WriteString(fmt.Sprintf("  %-27s = %s\n", "resource_group_name", "\"eits-Sandbox-mspsandbox-BU-07959a-rg\""))
+	}
+
+	// Required attributes (no defaults, must be provided even when disabled)
+	var requiredAttrs []schema.ParsedAttribute
+	for _, attr := range info.Attributes {
+		if attr.Required && !isStandardTestVar(attr.Name) {
+			requiredAttrs = append(requiredAttrs, attr)
+		}
+	}
+
+	if len(requiredAttrs) > 0 {
+		b.WriteString("\n  # Required attributes (must be provided even when disabled)\n")
+		for _, attr := range requiredAttrs {
+			varName := getVariableName(attr.Name, info.ShortName)
+			exampleValue := generateExampleValue(attr)
+			b.WriteString(fmt.Sprintf("  %-27s = %s\n", varName, exampleValue))
+		}
+	}
+
+	// Required blocks (must be provided even when disabled)
+	var requiredBlocks []schema.ParsedBlock
+	for _, block := range info.Blocks {
+		if block.Required {
+			requiredBlocks = append(requiredBlocks, block)
+		}
+	}
+
+	if len(requiredBlocks) > 0 {
+		b.WriteString("\n  # Required blocks\n")
+		for _, block := range requiredBlocks {
+			exampleBlock := generateExampleBlock(block)
+			b.WriteString(exampleBlock)
+		}
+	}
+
+	// Tags (required by validation even when disabled)
+	b.WriteString("\n  tags = {\n")
+	b.WriteString("    \"CostString\"  = \"0000.111.11.22\"\n")
+	b.WriteString("    \"AppID\"       = \"0\"\n")
+	b.WriteString("    \"Environment\" = \"sbx\"\n")
+	b.WriteString("  }\n")
+	b.WriteString("}\n")
+
+	return b.String()
+}
+
+// generateCompleteExampleBlock generates a block with ALL attributes (required + optional).
+func generateCompleteExampleBlock(block schema.ParsedBlock) string {
+	var b strings.Builder
+
+	isSingle := isSingleBlock(block)
+	mapKey := fmt.Sprintf("%s-1", block.Name)
+
+	if isSingle {
+		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
+		for _, attr := range block.Attributes {
+			exampleValue := generateExampleValue(attr)
+			padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
+			b.WriteString(fmt.Sprintf("    %s%s = %s\n", attr.Name, padding, exampleValue))
+		}
+		if len(block.Attributes) == 0 {
+			b.WriteString(fmt.Sprintf("    # Configure %s attributes\n", block.Name))
+		}
+		b.WriteString("  }\n")
+	} else {
+		b.WriteString(fmt.Sprintf("  %s = {\n", block.Name))
+		b.WriteString(fmt.Sprintf("    %s = {\n", mapKey))
+		for _, attr := range block.Attributes {
+			exampleValue := generateExampleValue(attr)
+			padding := strings.Repeat(" ", max(0, 25-len(attr.Name)))
+			b.WriteString(fmt.Sprintf("      %s%s = %s\n", attr.Name, padding, exampleValue))
+		}
+		if len(block.Attributes) == 0 {
+			b.WriteString(fmt.Sprintf("      # Configure %s attributes\n", block.Name))
+		}
+		b.WriteString("    }\n")
+		b.WriteString("  }\n")
+	}
 
 	return b.String()
 }
