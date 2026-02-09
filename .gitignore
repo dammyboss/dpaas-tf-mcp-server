@@ -10,3 +10,9 @@ gemini-extension.json.backup*
 
 # Generated Terraform modules (output from generator)
 expn-tf-azure-*/
+
+# npm package built binaries
+npm/bin/
+
+# Null-label module (bundled at build time, not source-controlled)
+null-label/

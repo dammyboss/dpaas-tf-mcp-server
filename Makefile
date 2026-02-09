@@ -11,7 +11,7 @@ TARGET_DIR ?= $(CURDIR)/dist
 # Build flags
 LDFLAGS=-ldflags="-s -w -X terraform-mcp-server/version.GitCommit=$(shell git rev-parse HEAD) -X terraform-mcp-server/version.BuildDate=$(shell git show --no-show-signature -s --format=%cd --date=format:"%Y-%m-%dT%H:%M:%SZ" HEAD)"
 
-.PHONY: all build crt-build test test-e2e test-security clean deps docker-build run-http run-http-secure docker-run-http test-http cleanup-test-containers update-server-json-version help
+.PHONY: all build crt-build test test-e2e test-security clean deps docker-build run-http run-http-secure docker-run-http test-http cleanup-test-containers update-server-json-version npm-build npm-publish help
 
 # Default target
 all: build
@@ -97,6 +97,14 @@ cleanup-test-containers:
 	@$(DOCKER) ps -aq --filter "ancestor=$(BINARY_NAME):test-e2e" | xargs -r $(DOCKER) rm
 	@echo "Test container cleanup complete"
 
+# Build cross-platform binaries for npm package
+npm-build:
+	@$(CURDIR)/scripts/build-npm.sh
+
+# Publish npm package (set NPM_REGISTRY to your Azure DevOps feed URL)
+npm-publish: npm-build
+	cd $(CURDIR)/npm && npm publish --registry $(NPM_REGISTRY)
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -116,4 +124,6 @@ help:
 	@echo "  update-json-version     - Update server.json to match version/VERSION"
 	@echo "  update-gemini-version   - Update gemini-extension.json to match version/VERSION"
 	@echo "  cleanup-test-containers - Stop and remove all test containers"
+	@echo "  npm-build               - Build cross-platform binaries for npm"
+	@echo "  npm-publish             - Build and publish npm package (set NPM_REGISTRY)"
 	@echo "  help                    - Show this help message"

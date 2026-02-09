@@ -28,7 +28,7 @@ import (
 var (
 	rootCmd = &cobra.Command{
 		Use:     "terraform-mcp-server",
-		Short:   "Terraform MCP Server",
+		Short:   "DPaaS Terraform MCP Server",
 		Long:    `A Terraform MCP server that handles various tools and resources.`,
 		Version: fmt.Sprintf("Version: %s\nCommit: %s\nBuild Date: %s", version.GetHumanVersion(), version.GitCommit, version.BuildDate),
 		Run:     runDefaultCommand,

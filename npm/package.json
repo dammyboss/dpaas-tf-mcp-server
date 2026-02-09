@@ -1,0 +1,41 @@
+{
+  "name": "@dpaas/terraform-mcp-server",
+  "version": "0.4.3",
+  "description": "DPaaS Terraform MCP Server - Generate innersource Terraform modules for Azure resources",
+  "bin": {
+    "terraform-mcp-server": "cli.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "keywords": [
+    "terraform",
+    "mcp",
+    "dpaas",
+    "azure",
+    "innersource"
+  ],
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dammyboss/dpaas-tf-mcp-server"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "bin/",
+    "cli.js",
+    "install.js",
+    "README.md"
+  ]
+}
