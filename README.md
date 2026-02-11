@@ -4,7 +4,7 @@
 [![Terraform](https://img.shields.io/badge/Terraform-Module%20Generator-7B42BC?style=flat&logo=terraform)](https://www.terraform.io/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-blue?style=flat)](https://modelcontextprotocol.io/)
 [![Azure](https://img.shields.io/badge/Cloud-Azure-0078D4?style=flat&logo=microsoftazure)](https://azure.microsoft.com/)
-[![GitHub](https://img.shields.io/badge/GitHub-dammyboss-181717?style=flat&logo=github)](https://github.com/dammyboss)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=flat&logo=github)](https://github.com)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Damilola_Onadeinde-0077B5?style=flat&logo=linkedin)](https://linkedin.com/in/damilola-onadeinde)
 [![YouTube](https://img.shields.io/badge/YouTube-DevOps_with_Dami-FF0000?style=flat&logo=youtube)](https://youtube.com/@devopswithdami)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support%20My%20Work-orange?style=flat&logo=buymeacoffee)](https://buymeacoffee.com/devopswithdami)
@@ -62,6 +62,7 @@ expn-tf-azure-{resource}/
 
 ## Prerequisites
 
+- **Go** (1.22+) — If building from source
 - **Terraform** — Required for schema extraction (`terraform providers schema -json`)
 - **Node.js** (v16+) — If installing via npm
 - **Docker** — If using the Docker image (Terraform included in image)
@@ -74,18 +75,18 @@ Install from Azure DevOps Artifacts feed:
 
 1. Add the scoped registry to your `~/.npmrc`:
 ```
-@dpaas:registry=https://pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/registry/
+@dpaas:registry=https://pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/registry/
 ```
 
 2. Set up authentication in `~/.npmrc` (see [Azure DevOps Artifacts docs](https://learn.microsoft.com/en-us/azure/devops/artifacts/npm/npmrc)):
 ```
 ; begin auth token
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/registry/:username=<YOUR_USERNAME>
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/registry/:_password=<BASE64_ENCODED_PAT>
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/registry/:email=npm requires email to be set but doesn't use the value
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/:username=<YOUR_USERNAME>
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/:_password=<BASE64_ENCODED_PAT>
-//pkgs.dev.azure.com/dammyboss/test/_packaging/dpaas/npm/:email=npm requires email to be set but doesn't use the value
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/registry/:username=<YOUR_USERNAME>
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/registry/:_password=<BASE64_ENCODED_PAT>
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/registry/:email=npm requires email to be set but doesn't use the value
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/:username=<YOUR_USERNAME>
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/:_password=<BASE64_ENCODED_PAT>
+//pkgs.dev.azure.com/<ORGANIZATION>/<PROJECT>/_packaging/<FEED>/npm/:email=npm requires email to be set but doesn't use the value
 ; end auth token
 ```
 
@@ -97,7 +98,7 @@ npx @dpaas/terraform-mcp-server --version
 ### Option 2: Docker
 
 ```bash
-git clone https://github.com/dammyboss/dpaas-tf-mcp-server.git
+git clone <REPO_URL>
 cd dpaas-tf-mcp-server
 docker build --target=dpaas -t terraform-mcp-dpaas .
 ```
@@ -107,7 +108,7 @@ docker build --target=dpaas -t terraform-mcp-dpaas .
 ### Option 3: Build from Source
 
 ```bash
-git clone https://github.com/dammyboss/dpaas-tf-mcp-server.git
+git clone <REPO_URL>
 cd dpaas-tf-mcp-server
 make build
 ```
@@ -278,7 +279,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 Connect with me:
 
-<a href="https://github.com/dammyboss"><img src="https://img.icons8.com/fluent/48/000000/github.png" alt="GitHub" width="40"/></a>
+<a href="https://github.com"><img src="https://img.icons8.com/fluent/48/000000/github.png" alt="GitHub" width="40"/></a>
 <a href="https://linkedin.com/in/damilola-onadeinde"><img src="https://img.icons8.com/fluent/48/000000/linkedin.png" alt="LinkedIn" width="40"/></a>
 <a href="https://devopswithdami.com"><img src="https://img.icons8.com/fluent/48/000000/domain.png" alt="Portfolio" width="40"/></a>
 <a href="https://youtube.com/@devopswithdami"><img src="https://img.icons8.com/fluent/48/000000/youtube-play.png" alt="YouTube" width="40"/></a>
