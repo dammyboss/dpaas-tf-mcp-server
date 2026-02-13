@@ -1,6 +1,6 @@
 {
   "name": "@dpaas/terraform-mcp-server",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "DPaaS Terraform MCP Server - Generate innersource Terraform modules for Azure resources",
   "bin": {
     "terraform-mcp-server": "cli.js"

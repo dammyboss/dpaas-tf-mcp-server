@@ -59,7 +59,7 @@ func ValidateModule(modulePath string, info *schema.ResourceInfo) (*ValidationRe
 	if mainTf, err := os.ReadFile(filepath.Join(modulePath, "main.tf")); err == nil {
 		content := string(mainTf)
 		r.addCheck("main.tf uses count pattern",
-			strings.Contains(content, "count               = local.enabled ? 1 : 0"),
+			containsCountPattern(content),
 			"Resource must use: count = local.enabled ? 1 : 0")
 		r.addCheck("main.tf resource named 'this'",
 			strings.Contains(content, fmt.Sprintf(`"%s" "this"`, info.ResourceType)),
@@ -158,6 +158,18 @@ func checkCoverage(modulePath string, info *schema.ResourceInfo) *CoverageReport
 		cr.CoveragePercent = float64(matched) / float64(total) * 100
 	}
 	return cr
+}
+
+// containsCountPattern checks for "count = local.enabled ? 1 : 0" regardless of whitespace alignment.
+func containsCountPattern(content string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		normalized := strings.Join(strings.Fields(trimmed), " ")
+		if normalized == "count = local.enabled ? 1 : 0" {
+			return true
+		}
+	}
+	return false
 }
 
 func fileExists(path string) bool {
