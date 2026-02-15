@@ -1,5 +1,5 @@
 module "this" {
-  source = "../null-label"
+  source = "git::https://code.experian.local/scm/DPAAS/expn-tf-aws-null-label.git//?ref=v1.0.0"
 
   enabled             = var.enabled
   namespace           = var.namespace
