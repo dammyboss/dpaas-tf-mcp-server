@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -30,12 +31,6 @@ func GenerateReadme(info *schema.ResourceInfo) string {
 	b.WriteString("**Last Module Review**: " + time.Now().Format("2006-01-02") + "\n\n")
 	b.WriteString("See below for the date and results of our EITS security and compliance scanning.\n\n")
 	b.WriteString("<!-- BEGIN_BENCHMARK_TABLE -->\n")
-	b.WriteString("| Benchmark | Date | Version | Description |\n")
-	b.WriteString("| --------- | ---- | ------- | ----------- |\n")
-	b.WriteString(fmt.Sprintf("| [![tflint](https://img.shields.io/badge/tflint-passed-green)]() | %s | 0.58.1 | Enforces best practices, syntax, naming conventions |\n", time.Now().Format("2006-01-02")))
-	b.WriteString(fmt.Sprintf("| [![trivy](https://img.shields.io/badge/trivy-passed-green)]() | %s | 0.61.0 | Detects misconfiguration in IaC files, such as Docker, Terraform, etc |\n", time.Now().Format("2006-01-02")))
-	b.WriteString(fmt.Sprintf("| [![checkov](https://img.shields.io/badge/checkov-passed-green)]() | %s | 3.2.464 | Deeper tfplan scanning for security and compliance issues |\n", time.Now().Format("2006-01-02")))
-	b.WriteString(fmt.Sprintf("| [![wiz](https://img.shields.io/badge/wiz.io_iac-passed-green)]() | %s | 0.84.0 | Scans tests directory plans for vulnerabilities and risks |\n", time.Now().Format("2006-01-02")))
 	b.WriteString("<!-- END_BENCHMARK_TABLE -->\n\n")
 
 	// Usage section
@@ -43,6 +38,12 @@ func GenerateReadme(info *schema.ResourceInfo) string {
 	b.WriteString("```hcl\n")
 	b.WriteString(generateUsageExample(info))
 	b.WriteString("```\n\n")
+
+	// Terraform-docs style documentation
+	writeRequirements(&b)
+	writeProviders(&b)
+	writeInputs(&b, info)
+	writeOutputs(&b, info)
 
 	// Contact
 	b.WriteString("## Contact\n\n")
@@ -57,6 +58,137 @@ func GenerateReadme(info *schema.ResourceInfo) string {
 	b.WriteString("<!-- END_TF_DOCS -->\n")
 
 	return b.String()
+}
+
+// writeRequirements writes the Requirements section.
+func writeRequirements(b *strings.Builder) {
+	b.WriteString("## Requirements\n\n")
+	b.WriteString("| Name | Version |\n")
+	b.WriteString("|------|------|\n")
+	b.WriteString("| terraform | >= 1.9, < 2.0 |\n")
+	b.WriteString("| azurerm | >= 4.14.0 |\n\n")
+}
+
+// writeProviders writes the Providers section.
+func writeProviders(b *strings.Builder) {
+	b.WriteString("## Providers\n\n")
+	b.WriteString("| Name | Version |\n")
+	b.WriteString("|------|------|\n")
+	b.WriteString("| azurerm | >= 4.14.0 |\n\n")
+}
+
+// writeInputs writes the Inputs table with all module variables.
+func writeInputs(b *strings.Builder, info *schema.ResourceInfo) {
+	b.WriteString("## Inputs\n\n")
+	b.WriteString("| Name | Description | Type | Default | Required |\n")
+	b.WriteString("|------|-------------|------|---------|----------|\n")
+
+	// DPaaS standard variables first
+	b.WriteString(fmt.Sprintf("| create\\_%s | Whether to create the %s. | `bool` | `true` | no |\n", info.ShortName, info.DisplayName))
+	b.WriteString("| enabled | Set to false to prevent the module from creating any resources. | `bool` | `true` | no |\n")
+	b.WriteString("| namespace | Namespace for naming convention (e.g. expn). | `string` | n/a | yes |\n")
+	b.WriteString("| tenant | Tenant for naming convention (e.g. msp). | `string` | n/a | yes |\n")
+	b.WriteString("| environment | Environment for naming convention (e.g. sbx, dev, prd). | `string` | n/a | yes |\n")
+	b.WriteString("| name | Name for naming convention. | `string` | n/a | yes |\n")
+
+	// Resource name variable
+	resourceNameVar := info.ShortName + "_name"
+	b.WriteString(fmt.Sprintf("| %s | Custom name for the %s. If not set, name is auto-generated using null-label. | `string` | `null` | no |\n", resourceNameVar, info.DisplayName))
+
+	// Resource attributes (sorted)
+	sortedAttrs := make([]schema.ParsedAttribute, len(info.Attributes))
+	copy(sortedAttrs, info.Attributes)
+	sort.Slice(sortedAttrs, func(i, j int) bool {
+		return sortedAttrs[i].Name < sortedAttrs[j].Name
+	})
+
+	for _, attr := range sortedAttrs {
+		if isStandardVar(attr.Name) {
+			continue
+		}
+		varName := getVariableName(attr.Name, info.ShortName)
+		desc := truncateDescription(attr.Description, 80)
+		if desc == "" {
+			desc = fmt.Sprintf("The %s of the %s.", strings.ReplaceAll(attr.Name, "_", " "), info.DisplayName)
+		}
+		tfType := formatTypeForTable(attr.TFType)
+		def := "`null`"
+		req := "no"
+		if attr.Required {
+			def = "n/a"
+			req = "yes"
+		}
+		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n", varName, desc, tfType, def, req))
+	}
+
+	// Block variables (sorted)
+	sortedBlocks := make([]schema.ParsedBlock, len(info.Blocks))
+	copy(sortedBlocks, info.Blocks)
+	sort.Slice(sortedBlocks, func(i, j int) bool {
+		return sortedBlocks[i].Name < sortedBlocks[j].Name
+	})
+
+	for _, block := range sortedBlocks {
+		desc := fmt.Sprintf("Configuration block for %s.", strings.ReplaceAll(block.Name, "_", " "))
+		typeName := "`object({...})`"
+		if !isSingleBlock(block) {
+			typeName = "`map(object({...}))`"
+		}
+		def := "`null`"
+		req := "no"
+		if block.Required {
+			if isSingleBlock(block) {
+				def = "n/a"
+			} else {
+				def = "`{}`"
+			}
+			req = "yes"
+		} else {
+			if isSingleBlock(block) {
+				def = "`null`"
+			} else {
+				def = "`{}`"
+			}
+		}
+		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n", block.Name, desc, typeName, def, req))
+	}
+
+	b.WriteString("| tags | Additional tags to apply to the resource. | `map(string)` | `{}` | no |\n")
+	b.WriteString("\n")
+}
+
+// writeOutputs writes the Outputs table.
+func writeOutputs(b *strings.Builder, info *schema.ResourceInfo) {
+	b.WriteString("## Outputs\n\n")
+	b.WriteString("| Name | Description |\n")
+	b.WriteString("|------|-------------|\n")
+	b.WriteString(fmt.Sprintf("| id | The ID of the %s. |\n", info.DisplayName))
+
+	for _, name := range info.ComputedOnlyAttrs {
+		displayName := strings.ReplaceAll(name, "_", " ")
+		b.WriteString(fmt.Sprintf("| %s | The %s of the %s. |\n", name, displayName, info.DisplayName))
+	}
+
+	b.WriteString("\n")
+}
+
+// truncateDescription shortens a description for the table.
+func truncateDescription(s string, maxLen int) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "|", "/")
+	if len(s) > maxLen {
+		s = s[:maxLen-3] + "..."
+	}
+	return s
+}
+
+// formatTypeForTable formats a Terraform type expression for the markdown table.
+func formatTypeForTable(tfType string) string {
+	if strings.HasPrefix(tfType, "list(") || strings.HasPrefix(tfType, "set(") || strings.HasPrefix(tfType, "map(") {
+		return fmt.Sprintf("`%s`", tfType)
+	}
+	return fmt.Sprintf("`%s`", tfType)
 }
 
 func generateUsageExample(info *schema.ResourceInfo) string {
