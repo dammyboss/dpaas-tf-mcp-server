@@ -209,10 +209,42 @@ Once connected to your MCP client, use natural language prompts:
 
 | Tool | Description |
 |------|-------------|
-| `dpaas_generate_module` | Generate a complete DPaaS Terraform module for an Azure resource |
-| `dpaas_extract_schema` | Extract and view the raw Terraform provider schema for a resource |
-| `dpaas_list_resources` | List available Azure resources from the Terraform provider |
-| `dpaas_validate_module` | Run `terraform validate` on a generated module |
+| `dpaas_generate_innersource_module` | Generate a complete DPaaS Terraform module for an Azure resource |
+| `dpaas_extract_resource_schema` | Extract and view the raw Terraform provider schema for a resource |
+| `dpaas_list_azure_resources` | List available Azure resources from the Terraform provider |
+| `dpaas_validate_module` | Validate a generated module against DPaaS standards |
+
+### Example Prompts
+
+Below are example prompts you can use with your AI coding assistant to interact with each tool:
+
+#### Generate a Module
+> "Generate a DPaaS innersource Terraform module for `azurerm_storage_account` and output it to `/path/to/output`"
+
+> "Generate a DPaaS module for `azurerm_application_gateway` with all test scenarios (default, complete, disabled)"
+
+> "Create a DPaaS Terraform module for Azure Load Test"
+
+#### List Available Resources
+> "List all available Azure resources I can generate modules for"
+
+> "Show me all Azure network-related resources available in the Terraform provider"
+
+> "List Azure resources that match 'storage'"
+
+#### Extract Resource Schema
+> "Extract the Terraform provider schema for `azurerm_key_vault` and show me all its attributes and blocks"
+
+> "What attributes does `azurerm_virtual_network` support? Extract its schema"
+
+> "Show me the full schema for `azurerm_container_registry` including nested blocks"
+
+#### Validate a Module
+> "Validate the DPaaS module at `/path/to/expn-tf-azure-storage-account` against DPaaS standards"
+
+> "Run DPaaS validation on the storage account module I just generated"
+
+> "Check if the generated application gateway module passes all 22 DPaaS compliance checks"
 
 ## Environment Variables
 

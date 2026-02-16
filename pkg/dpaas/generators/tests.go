@@ -49,8 +49,8 @@ func generateDefaultTest(info *schema.ResourceInfo) string {
 
 	// Add the {resource}_name as a commented example (it's optional in the module)
 	resourceNameVar := info.ShortName + "_name"
-	exampleName := strings.ReplaceAll(info.ShortName, "_", "-")
-	b.WriteString(fmt.Sprintf("  # %-25s = \"example-%s\"\n", resourceNameVar, exampleName))
+	exampleName := generateExampleResourceName(info)
+	b.WriteString(fmt.Sprintf("  # %-25s = \"%s\"\n", resourceNameVar, exampleName))
 
 	// Only add location and resource_group_name if they exist in the schema
 	hasLocation := false
@@ -133,8 +133,8 @@ func generateCompleteTest(info *schema.ResourceInfo) string {
 
 	// Resource name
 	resourceNameVar := info.ShortName + "_name"
-	exampleName := strings.ReplaceAll(info.ShortName, "_", "-")
-	b.WriteString(fmt.Sprintf("  %-27s = \"example-%s\"\n", resourceNameVar, exampleName))
+	exampleName := generateExampleResourceName(info)
+	b.WriteString(fmt.Sprintf("  %-27s = \"%s\"\n", resourceNameVar, exampleName))
 
 	// Add location and resource_group_name if they exist
 	hasLocation := false
@@ -205,6 +205,11 @@ func generateDisabledTest(info *schema.ResourceInfo) string {
 	b.WriteString("  tenant      = \"msp\"\n")
 	b.WriteString("  environment = \"sbx\"\n")
 	b.WriteString("  name        = \"disabled\"\n\n")
+
+	// Add the {resource}_name as a commented example
+	resourceNameVar := info.ShortName + "_name"
+	exampleName := generateExampleResourceName(info)
+	b.WriteString(fmt.Sprintf("  # %-25s = \"%s\"\n", resourceNameVar, exampleName))
 
 	// Still need to provide required variables (they have no defaults)
 	hasLocation := false
@@ -691,6 +696,22 @@ func generateExampleBlock(block schema.ParsedBlock) string {
 	}
 
 	return b.String()
+}
+
+// generateExampleResourceName produces a compliant example name for the resource.
+// For restricted resources (lowercase + numbers only), it strips hyphens and truncates.
+// For normal resources, it uses the standard hyphenated format.
+func generateExampleResourceName(info *schema.ResourceInfo) string {
+	rule := GetNamingRule(info.ResourceType)
+	if rule != nil {
+		// Restricted resource: no hyphens, lowercase + numbers only
+		name := "example" + strings.ReplaceAll(info.ShortName, "_", "")
+		if len(name) > rule.MaxLength {
+			name = name[:rule.MaxLength]
+		}
+		return name
+	}
+	return "example-" + strings.ReplaceAll(info.ShortName, "_", "-")
 }
 
 // max returns the maximum of two integers

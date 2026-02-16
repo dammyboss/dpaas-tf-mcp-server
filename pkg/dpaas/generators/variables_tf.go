@@ -55,6 +55,22 @@ func GenerateVariablesTf(info *schema.ResourceInfo) string {
 	b.WriteString(fmt.Sprintf("  description = \"Specifies the name of the %s\"\n", info.DisplayName))
 	b.WriteString("  type        = string\n")
 	b.WriteString("  default     = null\n")
+
+	// Add validation for resources with naming restrictions
+	if rule := GetNamingRule(info.ResourceType); rule != nil {
+		if rule.StartWithAlpha {
+			b.WriteString(fmt.Sprintf("  validation {\n"))
+			b.WriteString(fmt.Sprintf("    condition     = var.%s == null || can(regex(\"^[a-z][a-z0-9]{0,%d}$\", var.%s))\n", nameVar, rule.MaxLength-1, nameVar))
+			b.WriteString(fmt.Sprintf("    error_message = \"%s name must be %d-%d characters, start with a lowercase letter, and contain only lowercase letters and numbers.\"\n", info.DisplayName, 1, rule.MaxLength))
+			b.WriteString(fmt.Sprintf("  }\n"))
+		} else {
+			b.WriteString(fmt.Sprintf("  validation {\n"))
+			b.WriteString(fmt.Sprintf("    condition     = var.%s == null || can(regex(\"^[a-z0-9]{3,%d}$\", var.%s))\n", nameVar, rule.MaxLength, nameVar))
+			b.WriteString(fmt.Sprintf("    error_message = \"%s name must be 3-%d characters and contain only lowercase letters and numbers.\"\n", info.DisplayName, rule.MaxLength))
+			b.WriteString(fmt.Sprintf("  }\n"))
+		}
+	}
+
 	b.WriteString("}\n\n")
 
 	// Check if resource_group_name and location exist in schema

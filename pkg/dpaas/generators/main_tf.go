@@ -14,7 +14,12 @@ func GenerateMainTf(info *schema.ResourceInfo) string {
 
 	b.WriteString(fmt.Sprintf("resource \"%s\" \"this\" {\n", info.ResourceType))
 	b.WriteString("  count               = local.enabled ? 1 : 0\n\n")
-	b.WriteString(fmt.Sprintf("  name                = var.%s != null ? var.%s : module.this.id\n", nameVar, nameVar))
+	// Use local.resource_name for resources with naming restrictions (lowercase+numbers only)
+	nameSource := "module.this.id"
+	if GetNamingRule(info.ResourceType) != nil {
+		nameSource = "local.resource_name"
+	}
+	b.WriteString(fmt.Sprintf("  name                = var.%s != null ? var.%s : %s\n", nameVar, nameVar, nameSource))
 
 	// Only add location and resource_group_name if they exist in the schema
 	hasLocation := false
